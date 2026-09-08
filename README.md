@@ -17,11 +17,3 @@ skill-name/
   SKILL.md
   references/    (optional, loaded on demand)
 ```
-
-## Installing
-
-Symlink a skill into `~/.claude/skills/` to make it available:
-
-```sh
-ln -s "$PWD/astro-to-pagescms" ~/.claude/skills/astro-to-pagescms
-```
