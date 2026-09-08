@@ -6,9 +6,9 @@ Each skill lives in its own directory with a `SKILL.md` file describing what it 
 
 ## Skills
 
-- [astro-to-pagescms](astro-to-pagescms/) converts an Astro content collection
-  config into a Pages CMS `.pages.yml`, with the full zod field mapping and the
-  places where the two do not line up.
+- [astro-to-pagescms](astro-to-pagescms/) wires Pages CMS into an Astro site:
+  what Pages CMS can do, how to set it up, the full zod-to-field mapping, and
+  which structural choices to put to the user rather than decide alone.
 
 ## Layout
 

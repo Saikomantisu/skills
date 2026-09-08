@@ -1,8 +1,9 @@
 # Worked examples
 
-Four of them: the smallest conversion that is still correct, a
-single-collection blog, a multi-collection build, and one that hits the
-`image()` problem.
+Five of them: the smallest conversion that is still correct, a
+single-collection blog, a multi-collection build, one that hits the `image()`
+problem, and one where the structure had to be agreed with the user before any
+YAML could be written.
 
 None of these is a template. The shapes here are common, not canonical, and
 every path, extension, and field name in them came from reading one particular
@@ -161,12 +162,27 @@ has one.
 
 ### `readTime` and the whole `skills` collection are missing
 
-Both deliberate. `readTime` is optional and derived, so the CMS has no reason
-to show it. `skills` carries an SVG `iconPath` and a hex `color` — repo
-content, edited by whoever edits the repo, not by whoever writes posts.
+Both deliberate, and only one of them was the converter's call to make.
+
+`readTime` is optional and derived, so the CMS has no reason to show it. That
+omission is safe on its own terms and unsafe by default: with
+`settings.content.merge` at its default `false`, the first editor to save a
+post rewrites the file from the schema and `readTime` is gone from it. So the
+omission comes with a setting:
+
+```yaml
+settings:
+  content:
+    merge: true
+```
+
+`skills` is different. It carries an SVG `iconPath` and a hex `color`, which
+reads as repo content rather than editor content — but that is a guess about
+who does what, and the person who runs the site knows. Ask, and take the answer.
+Here it was yes, leave it out.
 
 Neither omission is visible from the config, which is the problem with them. A
-line of YAML comment saying `# skills is code-managed, deliberately not here`
+line of YAML comment saying `# skills is code-managed, agreed with the owner`
 costs nothing and stops the next reader from assuming the conversion stalled.
 
 ### `.mdx`, and what that does to the body
@@ -564,3 +580,208 @@ declaring it done.
 CMS now enforces the same limit the schema does, so editors find out while
 typing instead of at build time. Carry `min`/`max` across whenever zod has
 them. It is the cheapest quality win in the whole conversion.
+
+## The one that needed a conversation first
+
+A small agency site. The Astro config is not complicated:
+
+```ts
+export const collections = {
+  caseStudies,      // glob over src/content/case-studies
+  caseStudyTags,    // glob over src/content/case-study-tags
+  clients,          // glob over src/content/clients
+  team,             // glob over src/content/team
+  jobs,             // glob over src/content/jobs
+};
+```
+
+Plus `src/data/site.yml` holding nav labels and contact details, and
+`src/pages/index.astro` with the whole homepage hardcoded in markup.
+
+Mechanically this is five collections and forty minutes of table lookups. But
+mechanically is not the job here — five top-level sidebar items and a homepage
+nobody can touch is a CMS the client stops using in a month. So: do the five
+collections, then stop and ask.
+
+### The questions, in one round
+
+Four, each with a recommendation, asked together rather than one at a time:
+
+1. **Group the three case-study collections?** `caseStudies`, `caseStudyTags`,
+   and `clients` are one subject with three menu entries. Recommended: group
+   them under **Work**, leave `team` and `jobs` at the top level. Nothing moves
+   on disk either way.
+2. **Put `site.yml` in the CMS?** It is already YAML, so it is a ten-line
+   `type: file` entry and no code change. Recommended: yes.
+3. **The homepage.** Editable means moving the copy out of `index.astro` into a
+   data file and rendering from it — a real change to their code, and the only
+   one on the list. Recommended: yes for the hero and the three feature
+   blurbs, no for the rest.
+4. **Who edits?** Two people at the agency have GitHub; the client does not.
+   That answer decides `settings.commit.identity` and whether collaborators
+   need inviting.
+
+The answers came back: group them, yes, yes but make the sections reorderable,
+and invite the client.
+
+### What each answer turned into
+
+**Work group.** Navigation only, so the `path` on each collection is untouched
+and `reference()` still resolves by collection name:
+
+```yaml
+content:
+  - name: work
+    label: Work
+    type: group
+    items:
+      - name: caseStudies
+        label: Case studies
+        type: collection
+        path: src/content/case-studies
+        filename: "{primary}.md"
+        format: yaml-frontmatter
+        operations:
+          rename: false
+        fields: [...]
+      - name: caseStudyTags
+        label: Tags
+        type: collection
+        path: src/content/case-study-tags
+        filename: "{primary}.md"
+        format: yaml-frontmatter
+        fields: [...]
+      - name: clients
+        label: Clients
+        type: collection
+        path: src/content/clients
+        filename: "{primary}.md"
+        format: yaml-frontmatter
+        fields: [...]
+```
+
+The group's `name` is `work`, not `caseStudies`. It is not an Astro collection
+and must not look like one.
+
+`operations.rename: false` on `caseStudies` was not asked about, because it is
+not a preference — those filenames are live URLs under `/work/[...slug]`, and
+renaming one silently 404s a link the client has been sending to prospects.
+Turning it off is the mechanical consequence of reading the routes.
+
+**`site.yml`.**
+
+```yaml
+  - name: site
+    label: Site settings
+    type: file
+    path: src/data/site.yml
+    format: yaml
+    operations:
+      delete: false
+    fields:
+      - name: contact
+        type: object
+        fields:
+          - name: email
+            type: string
+            pattern:
+              regex: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+              message: Enter a valid email address
+          - name: phone
+            type: string
+      - name: nav
+        label: Navigation
+        type: object
+        list:
+          collapsible:
+            collapsed: true
+            summary: "{label}"
+        fields:
+          - name: label
+            type: string
+            required: true
+          - name: href
+            type: string
+            required: true
+```
+
+`delete: false` because a missing `site.yml` breaks every page, and files allow
+deletion by default.
+
+**The homepage, as blocks.** "Reorderable" is the word that decides this. Fixed
+slots would have been three named object fields; reorderable means `block`.
+
+The Astro side changed first — the copy moved to `src/data/home.yml`, a
+`sections` array, rendered through a component map keyed on `type`:
+
+```yaml
+  - name: home
+    label: Homepage
+    type: file
+    path: src/data/home.yml
+    format: yaml
+    operations:
+      delete: false
+    fields:
+      - name: sections
+        label: Sections
+        type: block
+        list:
+          collapsible:
+            collapsed: true
+            summary: "{type}"
+        blockKey: type
+        blocks:
+          - name: hero
+            fields:
+              - name: heading
+                type: string
+                required: true
+              - name: image
+                type: image
+          - name: features
+            fields:
+              - name: items
+                type: object
+                list:
+                  max: 3
+                fields:
+                  - name: title
+                    type: string
+                  - name: body
+                    type: text
+```
+
+`blockKey: type` matters more than it looks. The default is `_block`, and
+`_block` is not what the zod `discriminatedUnion` discriminates on, so leaving
+it unset produces a homepage that saves cleanly in the CMS and fails
+`astro build`.
+
+The `features` repeat is an `object` with `list: true` nested inside the block,
+not `list` on the block itself. There is no list-of-lists at the block root.
+
+**Editors.** The client gets a collaborator invite, and:
+
+```yaml
+settings:
+  content:
+    merge: true
+  commit:
+    identity: user
+```
+
+`identity: user` puts real names on the commits instead of attributing
+everything to the GitHub App, which is the difference between a useful
+`git log` and a wall of identical entries. `merge: true` because several
+collections omit derived fields.
+
+### The part worth copying
+
+The YAML above is this agency's, not yours. What transfers is the sequence: map
+everything the schema decides, notice the four things the schema does not
+decide, ask them together with a recommendation attached, then finish. The
+conversation took two minutes and changed the shape of the whole file.
+
+And note which decisions never became questions — `operations.rename: false`,
+`blockKey: type`, `merge: true`. Those follow from the routes, the schema, and
+the omissions. Asking about them would have been noise.
