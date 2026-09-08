@@ -144,7 +144,7 @@ Fourteen of them: `block`, `boolean`, `code`, `date`, `file`, `image`,
   options:
     media: content_images
     path: public/images/blog
-    rename: true
+    rename: safe
     switcher: true
 ```
 
@@ -285,7 +285,7 @@ Object form:
 media:
   input: src/media
   output: /media
-  rename: random
+  rename: safe
   categories: [image]
 ```
 
@@ -300,6 +300,7 @@ media:
   - name: docs
     input: media/docs
     output: /media/docs
+    rename: safe
     categories: [document]
 ```
 
@@ -315,3 +316,14 @@ media:
 
 `input` and `output` are independent. Files stored at `media/images/` can be
 referenced as `/media/images/` in content.
+
+`rename` defaults to `false`, which commits whatever the editor's file was
+called, spaces and capitals and all. Always write `rename: safe`, on every
+source in the array form. See the media section of `SKILL.md` for what breaks
+without it.
+
+### rename on fields
+
+`image`, `file`, and `rich-text` all take `options.rename`, which overrides the
+media source for that field. It exists to tighten a source that is loose, not
+to loosen one that is safe. Leave it unset and inherit `safe`.

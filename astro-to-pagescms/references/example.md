@@ -1,9 +1,228 @@
-# Worked example
+# Worked examples
 
-A real conversion, start to finish, plus a second one that hits the `image()`
-problem.
+Four of them: the smallest conversion that is still correct, a
+single-collection blog, a multi-collection build, and one that hits the
+`image()` problem.
 
-## Source
+None of these is a template. The shapes here are common, not canonical, and
+every path, extension, and field name in them came from reading one particular
+repo. Read yours. Where it disagrees with anything below, it wins.
+
+## The minimal case
+
+A stock Astro blog with one collection:
+
+```ts
+// src/content.config.ts
+const blog = defineCollection({
+  loader: glob({ pattern: "**/*.md", base: "./src/content/blog" }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    pubDate: z.coerce.date(),
+  }),
+});
+
+export const collections = { blog };
+```
+
+Its whole `.pages.yml`:
+
+```yaml
+media:
+  input: public
+  output: /
+  rename: safe
+
+content:
+  - name: blog
+    label: Blog
+    type: collection
+    path: src/content/blog
+    filename: "{primary}.md"
+    format: yaml-frontmatter
+    view:
+      fields: [title, description, pubDate]
+    fields:
+      - name: title
+        type: string
+      - name: description
+        type: text
+        options:
+          maxlength: 280
+      - name: body
+        label: Body
+        type: rich-text
+      - name: pubDate
+        label: Published Date
+        type: date
+```
+
+Four things in there are worth understanding, and two are easy to get wrong.
+
+`input: public` with `output: /` is the right pairing for an Astro site that
+keeps images in `public/`. Astro serves `public/` at the site root, so a file
+committed to `public/img1.jpg` is fetched at `/img1.jpg`, and that is exactly
+the path the posts contain. Get this pair wrong in either direction and every
+image resolves to a 404 that looks like a CMS bug.
+
+`rename: safe` is not optional. Uploading straight into `public/` means the
+filename an editor picked becomes a public URL with nothing between the two.
+See the media section of `SKILL.md`.
+
+`description` carries `maxlength: 280` even though the zod schema is a bare
+`z.string()`. Nothing forced that; whoever converted it read the posts, saw a
+one-line meta description, and picked `text` with a cap. That is the judgment
+call the type cannot make for you.
+
+`body` sits third in the list, between `description` and `pubDate`. Field order
+is editor order and nothing else, so put the field people spend their time in
+where they will look for it rather than at the bottom out of habit.
+
+Now the two easy mistakes. The first is pluralising: `label: Blogs` reads
+better in the sidebar, so `name: blogs` follows it out of habit while the Astro
+key stays `blog`. Harmless until something calls `reference()`, at which point
+it is a confusing afternoon. Label freely, match the key exactly.
+
+The second is dropping `format`. Pages CMS infers `yaml-frontmatter` from the
+`.md` filename, so a config without it works. Write it anyway. It is one line,
+and it is the line that tells the next reader whether the body field is
+deliberate.
+
+## A real blog
+
+A single-author notes site with two collections, one of which reaches the CMS.
+The interesting parts are the decisions, not the YAML.
+
+```ts
+const notesCollection = defineCollection({
+  loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/notes" }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    publishDate: z.coerce.date(),
+    author: z.string(),
+    authorImage: z.string().optional(),
+    readTime: z.string().optional(),
+    category: z.string().refine(isValidCategory, { message: `...` }),
+    image: z.string().optional(),
+    imageAlt: z.string().optional(),
+    featured: z.boolean().default(false),
+    draft: z.boolean().default(true),
+  }),
+});
+
+const skillsCollection = defineCollection({ /* title, role, githubUrl, iconPath */ });
+
+export const collections = { notes: notesCollection, skills: skillsCollection };
+```
+
+### `category` is an enum wearing a string costume
+
+```ts
+// src/config/categories.ts
+export const CATEGORIES = ["Guides", "Notes", "Tools", "Releases"] as const;
+```
+
+```yaml
+- name: category
+  label: Category
+  type: select
+  options:
+    values: [Guides, Notes, Tools, Releases]
+```
+
+The schema says `z.string()`. Mapping it to `type: string` would be the literal
+reading and the wrong one: the refine closes the set, so a free-text box just
+lets editors fail the build by typo. Follow the predicate to its array and copy
+the values. Then accept that the copy drifts — `categories.ts` is the source of
+truth and the CMS will happily keep offering four options after someone adds a
+fifth.
+
+### `author` gets a default zod never asked for
+
+```yaml
+- name: author
+  label: Author
+  type: string
+  default: editorial
+
+- name: authorImage
+  label: Author image
+  type: string
+  default: /images/avatar.jpeg
+```
+
+`author` is `z.string()`, required, no default. The config gives it one anyway,
+because this is a single-author blog and the alternative is retyping a name
+into every post until one of them is misspelled. Defaults flow one way only:
+free to add where the schema has none, never `required: true` where the schema
+has one.
+
+### `readTime` and the whole `skills` collection are missing
+
+Both deliberate. `readTime` is optional and derived, so the CMS has no reason
+to show it. `skills` carries an SVG `iconPath` and a hex `color` — repo
+content, edited by whoever edits the repo, not by whoever writes posts.
+
+Neither omission is visible from the config, which is the problem with them. A
+line of YAML comment saying `# skills is code-managed, deliberately not here`
+costs nothing and stops the next reader from assuming the conversion stalled.
+
+### `.mdx`, and what that does to the body
+
+```yaml
+filename: "{primary}.mdx"
+```
+
+The loader pattern is `**/*.{md,mdx}`, so both extensions load, but `filename`
+is one template and `.mdx` is what the folder actually holds.
+
+The posts also open with things like
+`import Callout from "../../components/Callout.astro";`. The config maps
+`body` to `rich-text`, which is a markdown WYSIWYG being handed syntax it does
+not model. That may round-trip cleanly and it may quietly flatten a component
+into a paragraph. Open the most component-heavy post, save it without editing,
+and diff before trusting it.
+
+### `draft` earns its place in the list view
+
+```yaml
+view:
+  fields: [title, description, publishDate, draft]
+  primary: title
+  sort: [publishDate, title, draft]
+  default:
+    sort: publishDate
+    order: desc
+```
+
+`draft` defaults to `true`, so every new post starts unpublished. Putting the
+column in `view.fields` is what makes that survivable — without it the list
+gives no hint which posts are live, and something sits in draft for a month.
+
+### The media folder is the cautionary tale
+
+`media` is already right:
+
+```yaml
+media:
+  input: public/images
+  output: /images
+  rename: safe
+```
+
+And the folder underneath it still holds files like
+`public/images/posts/before-&-after.jpg`. An ampersand in a URL path,
+committed long before `rename: safe` was set, and `rename` only governs new
+uploads. This is the leftover the media section of `SKILL.md` warns about:
+turning the setting on fixes the future and nothing else. Sweep the existing
+folder, rename to `before-and-after.jpg`, and update the frontmatter that
+points at it.
+
+## The multi-collection case
+
+### Source
 
 ```ts
 // src/content.config.ts
@@ -59,7 +278,7 @@ const products = defineCollection({
 export const collections = { faqs, events, productCategories, products };
 ```
 
-## Decisions made before writing YAML
+### Decisions made before writing YAML
 
 Reading the markdown files answered four things zod could not:
 
@@ -74,12 +293,13 @@ Reading the markdown files answered four things zod could not:
   Astro key is camelCase, the folder is kebab-case, and Pages CMS needs the
   folder. The `name` stays camelCase so `reference()` lines up.
 
-## Result
+### Result
 
 ```yaml
 media:
   input: public/images
   output: /images
+  rename: safe
 
 content:
   - name: faqs
@@ -240,7 +460,7 @@ content:
         type: rich-text
 ```
 
-## Why each non-obvious call was made
+### Why each non-obvious call was made
 
 `date` carries both `default: ""` and `required: true`. Without the empty
 default every new event is stamped with today, which is wrong for a field that
@@ -338,7 +558,7 @@ prefix Pages CMS writes is one Astro resolves. Or change the schema to
 Either way, save one post through the CMS and run `astro build` before
 declaring it done.
 
-## Note on `excerpt`
+### Note on `excerpt`
 
 `z.string().max(120)` becomes `options.maxlength: 120` on a `text` field. The
 CMS now enforces the same limit the schema does, so editors find out while

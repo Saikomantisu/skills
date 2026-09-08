@@ -21,6 +21,13 @@ Step 2 is the one people skip. Zod types are lossy: `z.string()` covers titles,
 slugs, URLs, image paths, and three-paragraph blurbs, and those become four
 different Pages CMS fields. The type alone cannot tell you which. The file can.
 
+Every YAML block below is an illustration, not a starting point. Media does not
+live in `public/images` because this document says so, bodies are not `.md`,
+posts do not have a `publishDate`. Those are the conventions of some repo that
+is not the one you are looking at. Copy the reasoning; derive the values from
+the schema, the folder, and the files in front of you. When a worked example
+and the actual repo disagree, the repo is right.
+
 ## Step 1: map the collection
 
 Each `defineCollection` becomes one entry under `content:`.
@@ -74,6 +81,12 @@ debugging gets tedious once the two drift.
 who types a title picks the slug. Prefix with `{year}-{month}-{day}-` if the
 existing files are dated.
 
+A loader pattern like `**/*.{md,mdx}` accepts both extensions, but `filename`
+is one template. Whichever extension you write there is the only one the CMS
+will ever create; files already on disk with the other keep working. Look at
+the folder and pick what it actually uses — `"{primary}.mdx"` for an MDX
+collection, `"{primary}.md"` otherwise.
+
 ### The body is not in the schema
 
 Astro never puts the markdown body in the zod schema. It arrives separately
@@ -88,6 +101,25 @@ a body editors cannot reach. Add it by hand to every frontmatter collection:
 
 The key must be exactly `body`. Pages CMS treats that name specially in
 frontmatter formats and maps it to the content below the delimiters.
+
+### MDX bodies need a decision
+
+`rich-text` is a markdown WYSIWYG. MDX is markdown plus `import` statements and
+JSX, and neither is markdown. An `.mdx` collection whose posts are plain prose
+maps to `rich-text` with no trouble. One whose posts open with
+
+```mdx
+import Callout from "../../components/Callout.astro";
+```
+
+is asking the editor to round-trip syntax it does not model, and the failure
+mode is a component silently flattened into a paragraph of text.
+
+So find out before shipping the config rather than after. Set `body` to
+`rich-text`, open the most component-heavy post in the collection, save it
+untouched, and diff. A clean diff means `rich-text` is fine for this content.
+A mangled one means the body needs `options.switcher: true` so editors can work
+in source, or `type: text` to take the WYSIWYG out of the loop entirely.
 
 ## Step 2: map the fields
 
@@ -163,6 +195,7 @@ different shape than the files already on disk.
 | `z.array(z.enum([...]))` | add `options.multiple: true` |
 | `z.array(z.enum([...])).min(a).max(b)` | `options.min` / `options.max` |
 | `z.nativeEnum(E)` | `type: select`, values written out by hand |
+| `z.string().refine(isOneOf)` | `type: select`, values written out by hand |
 | `z.literal("x")` | `type: string`, `hidden: true`, `default: "x"` |
 
 ```yaml
@@ -184,6 +217,26 @@ options:
 
 Whatever you write in `values` has to match the zod enum exactly. A label
 mismatch is invisible in the CMS and fails at build.
+
+A fixed set of choices does not always arrive as `z.enum`. Astro projects that
+need the list at runtime too — for a filter UI, a nav, a colour map — usually
+keep it in a const array and validate against it:
+
+```ts
+export const CATEGORIES = ["Guides", "Notes", "Tools", "Releases"] as const;
+
+category: z.string().refine(isValidCategory, { message: "..." }),
+```
+
+The zod type is `z.string()`, so nothing in the schema looks enum-shaped. Grep
+the refine's predicate to its source array and map it to `select` anyway —
+`type: string` here hands editors a free-text box for a closed set, and every
+typo becomes a build failure.
+
+Copy the values by hand and remember that the copy is now the drift risk. The
+const array is the source of truth, `.pages.yml` is a snapshot, and nothing
+connects them. When someone adds a category, the CMS keeps offering the old
+four.
 
 ### Arrays and objects
 
@@ -277,7 +330,7 @@ technically correct and useless.
 | `.catch(v)` | `default: v` |
 | `.describe("...")`, or a JSDoc comment | `description: "..."` |
 | `.transform(fn)` | no equivalent |
-| `.refine(fn)` | only if it can be written as `pattern` |
+| `.refine(fn)` | `pattern`, or `select` when it tests list membership |
 | `z.union([...])` | no equivalent, see below |
 | `z.discriminatedUnion(...)` | closest is `type: block` |
 | `z.any()`, `z.unknown()` | no equivalent, mark `hidden: true` |
@@ -287,15 +340,48 @@ when the key is missing. Marking it `required: true` blocks editors on
 something Astro would have handled, and `default: ""` combined with
 `required: true` produces a form nobody can save.
 
+The table only runs one way. A CMS `default` is an editor convenience and owes
+nothing to the schema, so it is fine — often better — to add one where zod has
+none. On a single-author blog, `author` is `z.string()` with no default and
+still deserves a `default:` in the config, because the alternative is retyping
+the same name into every post and eventually misspelling it. The rule that
+matters is the other direction: a zod `.default()` must not become
+`required: true`.
+
 `.transform()` and `.refine()` run after parsing, so the CMS never sees them.
 The CMS writes the raw pre-transform value and the transform still applies at
 build. That is usually fine. It stops being fine when a `.refine()` encodes a
 rule editors can break, in which case restate it in `description` so at least
-the failure is explicable.
+the failure is explicable. The exception is a `.refine()` that tests membership
+in a list, which maps to `select` properly — see the enum section above.
 
 For a plain `z.union`, pick the member that covers real content and accept the
 narrowing, or split it into a `select` discriminator plus optional fields.
 Neither is clean.
+
+### What to leave out
+
+A faithful conversion is not an exhaustive one. Two kinds of omission are
+normal and one is a bug.
+
+Fields the CMS has no business showing. A `readTime` computed from the body, an
+`ogImage` generated at build, a `hidden` flag only the code sets — optional in
+zod, absent from `.pages.yml`, and editors never see a box they should not
+touch. Safe as long as the field really is optional. Omit a required one and
+the CMS produces entries that fail `astro build` on a key the editor was never
+offered.
+
+Whole collections. Content that is really source — landing-page copy under
+version control, a `skills` collection whose entries carry an SVG `iconPath` —
+belongs to whoever edits the repo. Leaving it out of `.pages.yml` is a real
+choice, not an oversight, and worth a comment in the file saying so, because
+the next person will read a missing collection as an unfinished conversion.
+
+The bug is omitting a field by accident, and it hides well. Whether Pages CMS
+preserves frontmatter keys it does not know about on save is not something the
+docs commit to, so do not assume either way. The empty-diff check in step 4
+answers it for the version you are running, on the collection you care about.
+If undeclared keys are getting stripped, every save quietly deletes data.
 
 ## Step 3: media
 
@@ -303,12 +389,41 @@ Neither is clean.
 media:
   input: public/images
   output: /images
+  rename: safe
 ```
 
 `input` is where files land in the repo. `output` is the prefix written into
 content. Named sources work too when different collections upload to different
 places, and image fields then select one with `options.media`. Details in
 `references/pagescms-fields.md`.
+
+### Always set `rename: safe`
+
+Pages CMS defaults to `rename: false`, which commits the uploaded filename
+byte for byte. Editors upload from a phone or a design tool, so that filename
+is `IMG 2847 (1).JPG`, or `Screenshot 2026-08-26 at 14.02.31.png`, or
+something with an em dash in it. That path then goes straight into frontmatter
+and into markdown image syntax, where:
+
+- spaces break bare `![](...)` links, which stop at the first space;
+- parentheses break them again, closing the link early;
+- an uppercase extension resolves on a case-insensitive local filesystem and
+  404s on the case-sensitive host the site deploys to;
+- non-ASCII characters get percent-encoded inconsistently across the CMS, git,
+  and the host.
+
+`rename: safe` slugifies on upload, so the same file lands as `img-2847-1.jpg`
+and every consumer agrees on the path. Set it on every media source, including
+each entry of the array form. `rename: random` is also safe but discards a
+name editors can recognize in the media library, so prefer `safe` unless
+filename collisions are the actual problem.
+
+Two things to hold on to. Field-level `options.rename` on an `image`, `file`,
+or `rich-text` field overrides the media source, so setting it to `false`
+there reopens the hole for that one field. And renaming applies to uploads
+only: media already committed under unsafe names stays unsafe, so rename those
+on disk and fix their references in content at the same time. A half-migrated
+folder produces broken links that read like a CMS bug.
 
 ## Step 4: verify
 
@@ -329,4 +444,4 @@ mangling every existing file it touches.
 
 - `references/pagescms-fields.md` for every Pages CMS field type and its exact
   `options` keys.
-- `references/example.md` for a full worked conversion.
+- `references/example.md` for a minimal conversion and a full worked one.
