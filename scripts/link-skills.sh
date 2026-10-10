@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Symlink every skill in this repo into each agent's global skills directory,
 # and remove links that point at skills which no longer exist here.
-# Safe to rerun.
+# Each entry is a symlink into this repo, so edits are live everywhere.
+# Re-run after adding, removing or renaming a skill.
 set -euo pipefail
 
-REPO=$(cd "$(dirname "$0")" && pwd)
+REPO=$(cd "$(dirname "$0")/.." && pwd)
 TARGETS=(
   ~/.claude/skills
   ~/.agents/skills
@@ -15,6 +16,15 @@ TARGETS=(
 
 for target in "${TARGETS[@]}"; do
   [ -d "$target" ] || continue
+
+  # a target that is itself a link into this repo would get links written back
+  # into the working copy
+  case "$(readlink -f "$target")" in
+    "$REPO" | "$REPO"/*)
+      echo "skip $target (it is a symlink into this repo)" >&2
+      continue
+      ;;
+  esac
 
   # drop stale links into this repo (renamed or deleted skills)
   for link in "$target"/*; do
