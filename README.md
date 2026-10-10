@@ -16,9 +16,17 @@ Installed globally with [`npx skills`](https://github.com/vercel-labs/skills), e
 Its lock file is linked to [skill-lock.json](skill-lock.json), so commit that after
 adding, updating (`npx skills update -g`) or removing (`npx skills remove -g <name>`).
 
-Currently: `grill-me`, `grilling`, `teach`, `tdd`, `codebase-design` from
-[mattpocock/skills](https://github.com/mattpocock/skills), and `mini-browser` from
-[runablehq/mini-browser](https://github.com/runablehq/mini-browser).
+From [mattpocock/skills](https://github.com/mattpocock/skills):
+
+- grill-me interviews you relentlessly to sharpen a plan or design.
+- grilling stress-tests a plan, decision or idea.
+- teach teaches a new skill or concept inside the workspace.
+- tdd builds features and fixes bugs test-first.
+- codebase-design gives a shared vocabulary for designing deep modules.
+
+From [runablehq/mini-browser](https://github.com/runablehq/mini-browser):
+
+- mini-browser automates a browser with the `mb` CLI (screenshots, scraping, forms).
 
 ## Setup
 
