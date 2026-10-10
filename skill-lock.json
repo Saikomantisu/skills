@@ -50,6 +50,33 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-10-10T10:51:45.642Z",
       "updatedAt": "2026-10-10T10:51:45.642Z"
+    },
+    "mini-browser": {
+      "source": "runablehq/mini-browser",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/runablehq/mini-browser.git",
+      "skillPath": "skill/SKILL.md",
+      "skillFolderHash": "6d6af4d6a2645e8c8bc36a943614b48e53cefe7f",
+      "installedAt": "2026-10-10T20:09:28.802Z",
+      "updatedAt": "2026-10-10T20:09:28.802Z"
     }
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "cline",
+    "codex",
+    "cursor",
+    "droid",
+    "gemini-cli",
+    "github-copilot",
+    "kilo",
+    "kimi-code-cli",
+    "opencode",
+    "pi",
+    "warp",
+    "zed"
+  ],
+  "dismissed": {
+    "findSkillsPrompt": true
   }
 }

@@ -17,7 +17,8 @@ Its lock file is linked to [skill-lock.json](skill-lock.json), so commit that af
 adding, updating (`npx skills update -g`) or removing (`npx skills remove -g <name>`).
 
 Currently: `grill-me`, `grilling`, `teach`, `tdd`, `codebase-design` from
-[mattpocock/skills](https://github.com/mattpocock/skills).
+[mattpocock/skills](https://github.com/mattpocock/skills), and `mini-browser` from
+[runablehq/mini-browser](https://github.com/runablehq/mini-browser).
 
 ## Setup
 
