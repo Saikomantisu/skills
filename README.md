@@ -18,15 +18,15 @@ adding, updating (`npx skills update -g`) or removing (`npx skills remove -g <na
 
 From [mattpocock/skills](https://github.com/mattpocock/skills):
 
-- grill-me interviews you relentlessly to sharpen a plan or design.
-- grilling stress-tests a plan, decision or idea.
-- teach teaches a new skill or concept inside the workspace.
-- tdd builds features and fixes bugs test-first.
-- codebase-design gives a shared vocabulary for designing deep modules.
+- `grill-me` interviews you relentlessly to sharpen a plan or design.
+- `grilling` stress-tests a plan, decision or idea.
+- `teach` teaches a new skill or concept inside the workspace.
+- `tdd` builds features and fixes bugs test-first.
+- `codebase-design` gives a shared vocabulary for designing deep modules.
 
 From [runablehq/mini-browser](https://github.com/runablehq/mini-browser):
 
-- mini-browser automates a browser with the `mb` CLI (screenshots, scraping, forms).
+- `mini-browser` automates a browser with the `mb` CLI (screenshots, scraping, forms).
 
 ## Setup
 
