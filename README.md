@@ -28,6 +28,10 @@ From [runablehq/mini-browser](https://github.com/runablehq/mini-browser):
 
 - `mini-browser` automates a browser with the `mb` CLI (screenshots, scraping, forms).
 
+From [addyosmani/web-quality-skills](https://github.com/addyosmani/web-quality-skills):
+
+- `accessibility` audits and improves web accessibility against WCAG 2.2.
+
 ## Setup
 
 `scripts/setup.sh` runs both scripts below. Use it on a new machine.

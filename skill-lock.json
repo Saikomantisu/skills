@@ -59,6 +59,15 @@
       "skillFolderHash": "6d6af4d6a2645e8c8bc36a943614b48e53cefe7f",
       "installedAt": "2026-10-10T20:09:28.802Z",
       "updatedAt": "2026-10-10T20:09:28.802Z"
+    },
+    "accessibility": {
+      "source": "addyosmani/web-quality-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/addyosmani/web-quality-skills.git",
+      "skillPath": "skills/accessibility/SKILL.md",
+      "skillFolderHash": "90b7b38a892c625d19408df411e46cca7ff3819d",
+      "installedAt": "2026-10-17T05:47:36.002Z",
+      "updatedAt": "2026-10-17T05:47:36.002Z"
     }
   },
   "lastSelectedAgents": [
