@@ -32,6 +32,10 @@ From [addyosmani/web-quality-skills](https://github.com/addyosmani/web-quality-s
 
 - `accessibility` audits and improves web accessibility against WCAG 2.2.
 
+From [ibelick/ui-skills](https://github.com/ibelick/ui-skills):
+
+- `ui-skills-root` picks the smallest useful UI skill set via the `ui-skills` CLI before UI work.
+
 ## Setup
 
 `scripts/setup.sh` runs both scripts below. Use it on a new machine.

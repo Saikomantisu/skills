@@ -68,6 +68,15 @@
       "skillFolderHash": "90b7b38a892c625d19408df411e46cca7ff3819d",
       "installedAt": "2026-10-17T05:47:36.002Z",
       "updatedAt": "2026-10-17T05:47:36.002Z"
+    },
+    "ui-skills-root": {
+      "source": "ibelick/ui-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ibelick/ui-skills.git",
+      "skillPath": "skills/ui-skills-root/SKILL.md",
+      "skillFolderHash": "c69abe581f52417464d79446834e348adffb14fb",
+      "installedAt": "2026-10-17T16:05:09.834Z",
+      "updatedAt": "2026-10-17T16:05:09.834Z"
     }
   },
   "lastSelectedAgents": [
